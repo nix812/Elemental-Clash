@@ -1,20 +1,55 @@
 name: Auto-merge Claude branches
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
     branches:
-      - main
+      - 'claude/**'
 
 jobs:
   auto-merge:
-    if: startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - name: Merge PR into main
-        run: gh pr merge ${{ github.event.pull_request.number }} --merge --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - name: Create PR and merge into main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+
+            // Create PR (skip if one already exists)
+            let prNumber;
+            try {
+              const created = await github.rest.pulls.create({
+                owner, repo,
+                head:  branch,
+                base:  'main',
+                title: `Auto: ${branch}`,
+                body:  'Automated merge from Claude session.',
+              });
+              prNumber = created.data.number;
+              console.log(`Created PR #${prNumber}`);
+            } catch (e) {
+              // PR already exists — find it
+              const list = await github.rest.pulls.list({
+                owner, repo,
+                head:  `${owner}:${branch}`,
+                base:  'main',
+                state: 'open',
+              });
+              prNumber = list.data[0]?.number;
+              console.log(`Using existing PR #${prNumber}`);
+            }
+
+            // Merge it
+            await github.rest.pulls.merge({
+              owner, repo,
+              pull_number:  prNumber,
+              merge_method: 'merge',
+            });
+            console.log(`Merged PR #${prNumber} into main`);
