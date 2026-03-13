@@ -12,13 +12,28 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Create PR and merge into main
+      - name: Create PR if needed
         run: |
-          PR_URL=$(gh pr list --repo "$REPO" --head "$BRANCH" --json url --jq '.[0].url')
-          if [ -z "$PR_URL" ]; then
-            PR_URL=$(gh pr create --repo "$REPO" --head "$BRANCH" --base main --title "Auto: $BRANCH" --body "Automated merge from Claude session.")
-          fi
-          PR_NUMBER=$(gh pr view "$PR_URL" --repo "$REPO" --json number --jq '.number')
+          gh pr create \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --base main \
+            --title "Auto: $BRANCH" \
+            --body "Automated merge from Claude session." \
+          || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+
+      - name: Merge PR into main
+        run: |
+          PR_NUMBER=$(gh pr list \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --base main \
+            --json number \
+            --jq '.[0].number')
           gh pr merge "$PR_NUMBER" --merge --repo "$REPO"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
