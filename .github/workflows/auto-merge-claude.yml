@@ -46,10 +46,22 @@ jobs:
               console.log(`Using existing PR #${prNumber}`);
             }
 
-            // Merge it
-            await github.rest.pulls.merge({
-              owner, repo,
-              pull_number:  prNumber,
-              merge_method: 'merge',
-            });
-            console.log(`Merged PR #${prNumber} into main`);
+            // Merge with retry (handles "Base branch was modified" race condition)
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                await github.rest.pulls.merge({
+                  owner, repo,
+                  pull_number:  prNumber,
+                  merge_method: 'merge',
+                });
+                console.log(`Merged PR #${prNumber} into main`);
+                break;
+              } catch (mergeErr) {
+                if (attempt < 3 && mergeErr.message.includes('Base branch was modified')) {
+                  console.log(`Attempt ${attempt} failed (base modified), retrying in ${attempt * 2}s...`);
+                  await new Promise(r => setTimeout(r, attempt * 2000));
+                } else {
+                  throw mergeErr;
+                }
+              }
+            }
