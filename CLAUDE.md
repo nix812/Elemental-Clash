@@ -220,3 +220,9 @@ Elemental-Clash/
 - Added LICENSE (All Rights Reserved + CC BY 4.0 music attribution)
 - Set up GitHub Pages at https://nix812.github.io/Elemental-Clash/
 - Added North Star and Design Philosophy to CLAUDE.md
+
+### 2026-03-13 (session 2)
+- Batched changes: weather zones +20% size, weather zone canvas clipping to arena bounds, dual keybinding support (primary + secondary slots for all actions), READY button layout fix
+- Element selection screen rebuilt as simple scrolling layout — 6 stacked rows, no flex viewport gymnastics
+- Workflow change: Claude.ai handles all edits, CC is deploy-only (push to main)
+- Audio stays in audio/ folder, index.html stays lean
