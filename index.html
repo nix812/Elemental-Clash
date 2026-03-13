@@ -194,7 +194,7 @@
     overflow-x: hidden;
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 12px calc(clamp(36px, 5vh, 46px) + 36px);
+    padding: 8px 12px;
     gap: 0;
   }
 
@@ -379,9 +379,12 @@
   .hs-status-note.countdown { color: var(--accent); font-family: 'Orbitron', monospace; font-weight: 700; }
   .hs-status-note.launching { color: gold; font-family: 'Orbitron', monospace; font-weight: 900; animation: pulse 0.5s ease infinite alternate; }
 
-  /* 5. Ready section — fixed bar at bottom, outside scroll area */
+  /* 5. Ready section — rigid fixed-height row, direct child of #hero-select */
   .hs-section-ready {
     flex-shrink: 0;
+    flex-grow: 0;
+    height: 64px;
+    box-sizing: border-box;
     background: var(--bg);
     padding: 8px 12px 10px;
     border-top: 1px solid var(--border);
@@ -389,7 +392,7 @@
   /* Full-width ready button */
   .hs-ready-full {
     width: 100%;
-    height: clamp(36px, 5vh, 46px);
+    height: 100%;
     font-size: clamp(11px, 1.4vw, 14px);
   }
 
