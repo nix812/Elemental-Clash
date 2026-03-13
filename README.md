@@ -76,7 +76,10 @@ Ten heroes, each with a unique element, combat class, 3 abilities, a special, an
 
 ```
 elemental-clash/
-├── elemental-clash.html   # Entire game — self-contained single file
+├── elemental-clash.html   # Game — HTML, CSS, and JS
+├── audio/
+│   ├── bgm-battle.mp3     # In-game battle music
+│   └── bgm-menu.mp3       # Main menu music
 └── README.md
 ```
 
