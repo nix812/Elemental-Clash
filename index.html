@@ -379,14 +379,12 @@
   .hs-status-note.countdown { color: var(--accent); font-family: 'Orbitron', monospace; font-weight: 700; }
   .hs-status-note.launching { color: gold; font-family: 'Orbitron', monospace; font-weight: 900; animation: pulse 0.5s ease infinite alternate; }
 
-  /* 5. Ready section — sticky at bottom */
+  /* 5. Ready section — fixed at bottom, outside scroll area */
   .hs-section-ready {
-    position: sticky;
-    bottom: 0;
+    flex-shrink: 0;
     background: var(--bg);
-    padding: 8px 0 6px;
+    padding: 8px 12px 6px;
     border-top: 1px solid var(--border);
-    z-index: 10;
   }
   /* Full-width ready button */
   .hs-ready-full {
@@ -1143,11 +1141,11 @@
         <div id="lobby-slots" class="hs-slots"></div>
       </div>
 
-      <!-- 5. READY -->
-      <div class="hs-section hs-section-ready">
-        <button class="diff-ready hs-ready-full" id="ready-btn" onclick="lobbyReady()">READY</button>
-      </div>
+    </div>
 
+    <!-- 5. READY — outside scrollable body so it never clips -->
+    <div class="hs-section hs-section-ready">
+      <button class="diff-ready hs-ready-full" id="ready-btn" onclick="lobbyReady()">READY</button>
     </div>
 
     <!-- MATCH SETTINGS OVERLAY -->
@@ -2033,12 +2031,8 @@ function pollGamepad(gs) {
   }
 
   // ── Abilities: use controllerBindings for remappable buttons ──
-  const CB = controllerBindings;
-  [[CB.q, 0],[CB.e, 1],[CB.r, 2]].forEach(([btn, idx]) => {
-    if (btn < 0 || btn === undefined) return;
-    const pressed    = gp.buttons[btn]?.pressed ?? false;
-    const wasPressed = prevGamepadButtons[btn]  ?? false;
-    if (pressed && !wasPressed && gs && p && p.alive) {
+  [['q', 0],['e', 1],['r', 2]].forEach(([action, idx]) => {
+    if (ctrlBtnPressed(action, gp, prevGamepadButtons) && gs && p && p.alive) {
       const nearest = gs.enemies.reduce((best, e) => {
         if (!e.alive) return best;
         const d = Math.hypot(e.x-p.x, e.y-p.y);
@@ -2048,28 +2042,18 @@ function pollGamepad(gs) {
     }
   });
 
-  // ── Sprint: LB / L1 (controllerBindings.sprint) ──
-  const sprintBtn = CB.sprint >= 0 ? CB.sprint : 4;
-  if ((gp.buttons[sprintBtn]?.pressed ?? false) && !(prevGamepadButtons[sprintBtn] ?? false)) {
-    activateSprint();
-  }
+  // ── Sprint ──
+  if (ctrlBtnPressed('sprint', gp, prevGamepadButtons)) activateSprint();
 
-  // ── Special ability: Y / Triangle (controllerBindings.special) ──
-  const specialBtn = CB.special >= 0 ? CB.special : 3;
-  if ((gp.buttons[specialBtn]?.pressed ?? false) && !(prevGamepadButtons[specialBtn] ?? false)) {
-    activateSpecial();
-  }
+  // ── Special ability ──
+  if (ctrlBtnPressed('special', gp, prevGamepadButtons)) activateSpecial();
 
-  // ── Rock Buster: R3 / right stick click (controllerBindings.rockbuster) ──
-  const rockBusterBtn = CB.rockbuster >= 0 ? CB.rockbuster : 11;
-  if ((gp.buttons[rockBusterBtn]?.pressed ?? false) && !(prevGamepadButtons[rockBusterBtn] ?? false)) {
-    activateRockBuster();
-  }
+  // ── Rock Buster ──
+  if (ctrlBtnPressed('rockbuster', gp, prevGamepadButtons)) activateRockBuster();
 
-  // ── Pause: controllerBindings.pause (ignore for 1s after launch to avoid carry-over press) ──
-  const pauseBtn = CB.pause >= 0 ? CB.pause : M.start;
+  // ── Pause (ignore for 1s after launch to avoid carry-over press) ──
   const pauseGrace = (Date.now() - gameStartTime) > 1000;
-  if (pauseGrace && (gp.buttons[pauseBtn]?.pressed ?? false) && !(prevGamepadButtons[pauseBtn] ?? false)) togglePause();
+  if (pauseGrace && ctrlBtnPressed('pause', gp, prevGamepadButtons)) togglePause();
 
   prevGamepadButtons = gp.buttons.map(b => b?.pressed ?? false);
 }
@@ -2234,7 +2218,7 @@ function spawnWeatherZone(gs) {
     type,
     x: margin + Math.random() * (gs.W - margin*2),
     y: margin + Math.random() * (gs.H - margin*2),
-    radius: 320 + Math.random() * 160,   // 320–480 world units
+    radius: (320 + Math.random() * 160) * 1.2,   // ~384–576 world units (20% larger)
     vx: (Math.random()-0.5) * 18,
     vy: (Math.random()-0.5) * 18,
     intensity: 0,
@@ -2435,6 +2419,13 @@ function applyWeatherToChar(c, gs, dt) {
 function drawWeatherZones(gs) {
   if (!gs.weatherZones) return;
 
+  // Clip all weather visuals to the arena boundary
+  const ab = getArenaBounds(gs);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(ab.x, ab.y, ab.w, ab.h);
+  ctx.clip();
+
   for (const z of gs.weatherZones) {
     if (z.intensity <= 0) continue;
     const def = WEATHER_TYPES[z.type];
@@ -2535,6 +2526,9 @@ function drawWeatherZones(gs) {
     ctx.globalAlpha = 1;
     ctx.restore();
   }
+
+  // End arena clipping
+  ctx.restore();
 }
 
 let lockedTarget = null;    // currently locked enemy (player's target lock)
@@ -3122,24 +3116,45 @@ function togglePause() {
 
 // ========== CONTROLLER BINDINGS ==========
 const DEFAULT_CONTROLLER_BINDINGS = {
-  q:          2,   // X / Square
-  e:          0,   // A / Cross
-  r:          5,   // RB / R1
-  sprint:     4,   // LB / L1
-  special:    3,   // Y / Triangle
-  rockbuster: 11,  // R3 (right stick click)
-  pause:      9,   // Start / Options
+  q:          [2],   // X / Square
+  e:          [0],   // A / Cross
+  r:          [5],   // RB / R1
+  sprint:     [4],   // LB / L1
+  special:    [3],   // Y / Triangle
+  rockbuster: [11],  // R3 (right stick click)
+  pause:      [9],   // Start / Options
 };
 
 let controllerBindings = (() => {
   const saved = JSON.parse(localStorage.getItem('ec_ctrl_bindings') || 'null');
-  return Object.assign(JSON.parse(JSON.stringify(DEFAULT_CONTROLLER_BINDINGS)), saved || {});
+  const merged = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CONTROLLER_BINDINGS)), saved || {});
+  // Migrate old single-integer format to arrays
+  for (const k of Object.keys(merged)) {
+    if (!Array.isArray(merged[k])) merged[k] = merged[k] >= 0 ? [merged[k]] : [];
+  }
+  return merged;
 })();
 let rebindingCtrlAction = null;
 let optionsActiveTab = 'controls'; // persists across rebuilds
 
 function saveCtrlBindings() { localStorage.setItem('ec_ctrl_bindings', JSON.stringify(controllerBindings)); refreshDynamicBindLabels(); }
 function resetCtrlBindings() { controllerBindings = JSON.parse(JSON.stringify(DEFAULT_CONTROLLER_BINDINGS)); saveCtrlBindings(); }
+
+// Check if any button in a controller binding array is pressed (fresh press)
+function ctrlBtnPressed(action, gp, prev) {
+  const btns = controllerBindings[action] || [];
+  for (const b of btns) {
+    if (b >= 0 && (gp.buttons[b]?.pressed ?? false) && !(prev[b] ?? false)) return true;
+  }
+  return false;
+}
+function ctrlBtnHeld(action, gp) {
+  const btns = controllerBindings[action] || [];
+  for (const b of btns) {
+    if (b >= 0 && (gp.buttons[b]?.pressed ?? false)) return true;
+  }
+  return false;
+}
 
 // Button index → human label for Xbox and PS
 function gpBtnLabel(idx) {
@@ -3155,8 +3170,9 @@ function gpBtnLabel(idx) {
 // action: 'q' | 'e' | 'r' | 'special' | 'sprint' | 'pause'
 function getBindLabel(action) {
   if (gamepadState.connected) {
-    const btnIdx = controllerBindings[action];
-    if (btnIdx === -1 || btnIdx === undefined) return '—';
+    const btns = controllerBindings[action] || [];
+    if (!btns.length) return '—';
+    const btnIdx = btns[0];
     const XBOX = { 0:'A', 1:'B', 2:'X', 3:'Y', 4:'LB', 5:'RB', 6:'LT', 7:'RT', 8:'Select', 9:'Start', 10:'L3', 11:'R3', 12:'↑', 13:'↓', 14:'←', 15:'→' };
     const PS   = { 0:'✕', 1:'○', 2:'□', 3:'△', 4:'L1', 5:'R1', 6:'L2', 7:'R2', 8:'Share', 9:'Options', 10:'L3', 11:'R3', 12:'↑', 13:'↓', 14:'←', 15:'→' };
     const xbox = XBOX[btnIdx] ?? `Btn ${btnIdx}`;
@@ -3192,8 +3208,9 @@ function refreshDynamicBindLabels() {
   });
   // Controller-always spans (HTP controller card)
   document.querySelectorAll('[data-bind-ctrl]').forEach(el => {
-    const btnIdx = controllerBindings[el.dataset.bindCtrl];
-    if (btnIdx === -1 || btnIdx === undefined) { el.textContent = '—'; return; }
+    const btns = controllerBindings[el.dataset.bindCtrl] || [];
+    if (!btns.length) { el.textContent = '—'; return; }
+    const btnIdx = btns[0];
     const XBOX = { 0:'A',1:'B',2:'X',3:'Y',4:'LB',5:'RB',6:'LT',7:'RT',8:'Select',9:'Start',10:'L3',11:'R3',12:'↑',13:'↓',14:'←',15:'→' };
     const PS   = { 0:'✕',1:'○',2:'□',3:'△',4:'L1',5:'R1',6:'L2',7:'R2',8:'Share',9:'Options',10:'L3',11:'R3',12:'↑',13:'↓',14:'←',15:'→' };
     const xbox = XBOX[btnIdx] ?? `Btn ${btnIdx}`;
@@ -3243,6 +3260,7 @@ function buildOptionsPanel(containerId, tab) {
     {key:'e',          label:'Ability E'},
     {key:'r',          label:'Ultimate'},
     {key:'sprint',     label:'Sprint'},
+    {key:'special',    label:'Special'},
     {key:'rockbuster', label:'Rock Buster'},
     {key:'pause',      label:'Pause'},
   ];
@@ -3257,11 +3275,10 @@ function buildOptionsPanel(containerId, tab) {
     {key:'pause',      label:'Pause'},
   ];
 
-  function kbLabel(key) {
-    const keys = (keybindings[key] || []).map(k =>
-      k.replace('Key','').replace('Arrow','').replace('Shift','⇧')
-       .replace('Tab','⇥').replace('Escape','Esc').replace('Mouse0','Click'));
-    return keys[0] || '—';
+  function kbKeyLabel(code) {
+    if (!code) return '—';
+    return code.replace('Key','').replace('Arrow','').replace('Shift','⇧')
+      .replace('Tab','⇥').replace('Escape','Esc').replace('Mouse0','Click');
   }
 
   // ── Tab bar ──────────────────────────────────────────────────────
@@ -3306,26 +3323,42 @@ function buildOptionsPanel(containerId, tab) {
       </div>
     </div>`;
 
-    // Rebind section — controller (only when connected)
+    // Rebind section — controller (only when connected) — primary + secondary slots
     if (ctrlConnected) {
       h += `<div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">🎮 CONTROLLER REBIND</div>`;
-      h += `<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px 12px;align-items:center;margin-bottom:6px;">`;
+      h += `<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:4px 8px;align-items:center;margin-bottom:6px;">`;
       h += `<div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">ACTION</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">BUTTON</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">PRIMARY</div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:4px;"></div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">SECONDARY</div>
             <div style="border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:4px;"></div>`;
       CTRL_ACTIONS.forEach(a => {
-        const waiting = rebindingCtrlAction === a.key;
+        const btns = CB[a.key] || [];
+        const primary = btns[0] !== undefined ? btns[0] : -1;
+        const secondary = btns[1] !== undefined ? btns[1] : -1;
+        const waitP = rebindingCtrlAction === a.key + ':0';
+        const waitS = rebindingCtrlAction === a.key + ':1';
         h += `
           <div style="font-size:var(--fs-xs);padding:4px 0;">${a.label}</div>
-          <div style="font-size:var(--fs-xs);padding:4px 0;color:${waiting?'#ffee44':'var(--text)'};font-family:monospace;letter-spacing:1px;">
-            ${waiting ? '🎮 PRESS BUTTON…' : `[${gpBtnLabel(CB[a.key])}]`}
+          <div style="font-size:var(--fs-xs);padding:4px 0;color:${waitP?'#ffee44':'var(--text)'};font-family:monospace;letter-spacing:1px;">
+            ${waitP ? '🎮 PRESS…' : `[${gpBtnLabel(primary)}]`}
           </div>
-          <button onclick="startCtrlRebind('${a.key}','${containerId}')"
-            style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 10px;
-              background:${waiting?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
-              border:1px solid ${waiting?'#ffee44':'rgba(0,212,255,0.25)'};
-              color:${waiting?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
-            ${waiting?'CANCEL':'REBIND'}
+          <button onclick="startCtrlRebind('${a.key}',0,'${containerId}')"
+            style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 8px;
+              background:${waitP?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
+              border:1px solid ${waitP?'#ffee44':'rgba(0,212,255,0.25)'};
+              color:${waitP?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
+            ${waitP?'CANCEL':'REBIND'}
+          </button>
+          <div style="font-size:var(--fs-xs);padding:4px 0;color:${waitS?'#ffee44':'var(--text)'};font-family:monospace;letter-spacing:1px;">
+            ${waitS ? '🎮 PRESS…' : `[${gpBtnLabel(secondary)}]`}
+          </div>
+          <button onclick="startCtrlRebind('${a.key}',1,'${containerId}')"
+            style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 8px;
+              background:${waitS?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
+              border:1px solid ${waitS?'#ffee44':'rgba(0,212,255,0.25)'};
+              color:${waitS?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
+            ${waitS?'CANCEL':'CLEAR'}
           </button>`;
       });
       h += `</div>
@@ -3335,26 +3368,41 @@ function buildOptionsPanel(containerId, tab) {
       </div>`;
     }
 
-    // Rebind section — keyboard
+    // Rebind section — keyboard (primary + secondary slots)
     h += `<div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">⌨ KEYBOARD REBIND</div>`;
-    h += `<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px 12px;align-items:center;margin-bottom:6px;">`;
+    h += `<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:4px 8px;align-items:center;margin-bottom:6px;">`;
     h += `<div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">ACTION</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">KEY</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">PRIMARY</div>
+          <div style="border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:4px;"></div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.07);">SECONDARY</div>
           <div style="border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:4px;"></div>`;
     KB_ACTIONS.forEach(a => {
-      const keys    = (keybindings[a.key]||[]).map(k=>k.replace('Key','').replace('Arrow','')).join(' / ');
-      const waiting = rebindingAction === a.key;
+      const keys = keybindings[a.key] || [];
+      const primary = keys[0] || null;
+      const secondary = keys[1] || null;
+      const waitP = rebindingAction === a.key + ':0';
+      const waitS = rebindingAction === a.key + ':1';
       h += `
         <div style="font-size:var(--fs-xs);padding:4px 0;">${a.label}</div>
-        <div style="font-size:var(--fs-xs);padding:4px 0;color:${waiting?'#ffee44':'var(--text)'};font-family:monospace;">
-          ${waiting ? '⌨ PRESS NEW KEY…' : (keys||'—')}
+        <div style="font-size:var(--fs-xs);padding:4px 0;color:${waitP?'#ffee44':'var(--text)'};font-family:monospace;letter-spacing:1px;">
+          ${waitP ? '⌨ PRESS…' : kbKeyLabel(primary)}
         </div>
-        <button onclick="startRebind('${a.key}','${containerId}')"
-          style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 10px;
-            background:${waiting?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
-            border:1px solid ${waiting?'#ffee44':'rgba(0,212,255,0.25)'};
-            color:${waiting?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
-          ${waiting?'CANCEL':'REBIND'}
+        <button onclick="startRebind('${a.key}',0,'${containerId}')"
+          style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 8px;
+            background:${waitP?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
+            border:1px solid ${waitP?'#ffee44':'rgba(0,212,255,0.25)'};
+            color:${waitP?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
+          ${waitP?'CANCEL':'REBIND'}
+        </button>
+        <div style="font-size:var(--fs-xs);padding:4px 0;color:${waitS?'#ffee44':'var(--text)'};font-family:monospace;letter-spacing:1px;">
+          ${waitS ? '⌨ PRESS…' : kbKeyLabel(secondary)}
+        </div>
+        <button onclick="startRebind('${a.key}',1,'${containerId}')"
+          style="font-family:'Orbitron',monospace;font-size:10px;padding:3px 8px;
+            background:${waitS?'rgba(255,238,68,0.2)':'rgba(0,212,255,0.08)'};
+            border:1px solid ${waitS?'#ffee44':'rgba(0,212,255,0.25)'};
+            color:${waitS?'#ffee44':'var(--accent)'};border-radius:4px;cursor:pointer;">
+          ${waitS?'CANCEL':'CLEAR'}
         </button>`;
     });
     h += `</div>
@@ -3465,27 +3513,30 @@ function buildOptionsPanel(containerId, tab) {
 }
 
 
-function startCtrlRebind(action, containerId) {
-  // Toggle off if already waiting for this action
-  if (rebindingCtrlAction === action) {
+function startCtrlRebind(action, slot, containerId) {
+  const rebindId = action + ':' + slot;
+  // Toggle off if already waiting for this action+slot
+  if (rebindingCtrlAction === rebindId) {
+    // If secondary slot and clicking CLEAR, remove the secondary binding
+    if (slot === 1) {
+      const btns = controllerBindings[action] || [];
+      controllerBindings[action] = btns.length > 0 ? [btns[0]] : [];
+      saveCtrlBindings();
+    }
     rebindingCtrlAction = null;
     buildOptionsPanel(containerId);
     return;
   }
-  rebindingCtrlAction = action;
+  rebindingCtrlAction = rebindId;
   buildOptionsPanel(containerId);
 
-  // Self-contained polling loop — shares no state with game loop or UINav.
-  // We take TWO snapshots before listening so we ignore any button already held.
   const pollStart = performance.now();
-  let   settled   = false;   // true once we've seen all buttons released
-  let   lastSnap  = null;    // boolean[] of previous frame
+  let   settled   = false;
+  let   lastSnap  = null;
 
   function waitForPress() {
-    // Cancelled externally (user clicked CANCEL)
-    if (rebindingCtrlAction !== action) return;
+    if (rebindingCtrlAction !== rebindId) return;
 
-    // Timeout
     if (performance.now() - pollStart > 8000) {
       rebindingCtrlAction = null;
       buildOptionsPanel(containerId);
@@ -3503,7 +3554,6 @@ function startCtrlRebind(action, containerId) {
     const curSnap = gp.buttons.map(b => b?.pressed ?? false);
 
     if (!settled) {
-      // Wait until every button is released before we start listening
       if (curSnap.every(v => !v)) settled = true;
       lastSnap = curSnap;
       requestAnimationFrame(waitForPress);
@@ -3513,11 +3563,21 @@ function startCtrlRebind(action, containerId) {
     if (lastSnap) {
       for (let i = 0; i < curSnap.length; i++) {
         if (curSnap[i] && !lastSnap[i]) {
-          // Got a fresh press — clear conflicts and save
+          // Clear conflicts: remove this button from other actions
           Object.keys(controllerBindings).forEach(k => {
-            if (k !== action && controllerBindings[k] === i) controllerBindings[k] = -1;
+            if (Array.isArray(controllerBindings[k])) {
+              controllerBindings[k] = controllerBindings[k].filter(b => b !== i);
+            }
           });
-          controllerBindings[action] = i;
+          // Set into correct slot
+          const btns = controllerBindings[action] || [];
+          if (slot === 0) {
+            btns[0] = i;
+          } else {
+            if (btns.length === 0) btns.push(-1);
+            btns[1] = i;
+          }
+          controllerBindings[action] = btns.filter(b => b >= 0);
           saveCtrlBindings();
           rebindingCtrlAction = null;
           buildOptionsPanel(containerId);
@@ -3533,17 +3593,37 @@ function startCtrlRebind(action, containerId) {
   requestAnimationFrame(waitForPress);
 }
 
-function startRebind(action, containerId) {
-  if (rebindingAction === action) { rebindingAction=null; buildOptionsPanel(containerId); return; }
-  rebindingAction = action;
+function startRebind(action, slot, containerId) {
+  const rebindId = action + ':' + slot;
+  if (rebindingAction === rebindId) {
+    // If secondary slot and clicking CLEAR, remove the secondary binding
+    if (slot === 1) {
+      const keys = keybindings[action] || [];
+      keybindings[action] = keys.length > 0 ? [keys[0]] : [];
+      saveBindings();
+    }
+    rebindingAction = null;
+    buildOptionsPanel(containerId);
+    return;
+  }
+  rebindingAction = rebindId;
   buildOptionsPanel(containerId);
   function onKey(e) {
     e.preventDefault();
-    if (e.code==='Escape') { rebindingAction=null; buildOptionsPanel(containerId); document.removeEventListener('keydown',onKey); return; }
-    Object.keys(keybindings).forEach(k => { keybindings[k]=(keybindings[k]||[]).filter(c=>c!==e.code); });
-    keybindings[action]=[e.code];
-    saveBindings(); rebindingAction=null;
-    buildOptionsPanel(containerId); document.removeEventListener('keydown',onKey);
+    if (e.code === 'Escape') { rebindingAction = null; buildOptionsPanel(containerId); document.removeEventListener('keydown', onKey); return; }
+    // Remove this key from all other bindings to prevent conflicts
+    Object.keys(keybindings).forEach(k => { keybindings[k] = (keybindings[k] || []).filter(c => c !== e.code); });
+    // Set the key into the correct slot
+    const keys = keybindings[action] || [];
+    if (slot === 0) {
+      keys[0] = e.code;
+    } else {
+      if (keys.length === 0) keys[0] = null;
+      keys[1] = e.code;
+    }
+    keybindings[action] = keys.filter(k => k != null);
+    saveBindings(); rebindingAction = null;
+    buildOptionsPanel(containerId); document.removeEventListener('keydown', onKey);
   }
   document.addEventListener('keydown', onKey);
 }
