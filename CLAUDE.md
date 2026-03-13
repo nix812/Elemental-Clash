@@ -3,6 +3,14 @@
 This file is read automatically by Claude Code at the start of every session.
 Update it after design decisions, balance changes, or planning sessions.
 
+## Session Workflow
+
+Claude can only push to `claude/` prefixed branches (not directly to main).
+GitHub automatically merges these PRs to main — no manual action needed from the user.
+
+At the start of each session, fetch main to work from the latest code:
+`git fetch origin main && git checkout main && git pull origin main`
+
 ---
 
 ## Project Overview
