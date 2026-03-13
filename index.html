@@ -379,12 +379,15 @@
   .hs-status-note.countdown { color: var(--accent); font-family: 'Orbitron', monospace; font-weight: 700; }
   .hs-status-note.launching { color: gold; font-family: 'Orbitron', monospace; font-weight: 900; animation: pulse 0.5s ease infinite alternate; }
 
-  /* 5. Ready section — fixed at bottom, outside scroll area */
+  /* 5. Ready section — inside scroll area, below lobby slots */
   .hs-section-ready {
     flex-shrink: 0;
     background: var(--bg);
-    padding: 8px 12px 6px;
+    padding: 8px 0 6px;
     border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
   }
   /* Full-width ready button */
   .hs-ready-full {
@@ -1141,11 +1144,12 @@
         <div id="lobby-slots" class="hs-slots"></div>
       </div>
 
-    </div>
+      <!-- 5. READY — flows after lobby slots, pushed to bottom via spacer -->
+      <div style="flex:1;"></div>
+      <div class="hs-section hs-section-ready">
+        <button class="diff-ready hs-ready-full" id="ready-btn" onclick="lobbyReady()">READY</button>
+      </div>
 
-    <!-- 5. READY — outside scrollable body so it never clips -->
-    <div class="hs-section hs-section-ready">
-      <button class="diff-ready hs-ready-full" id="ready-btn" onclick="lobbyReady()">READY</button>
     </div>
 
     <!-- MATCH SETTINGS OVERLAY -->
