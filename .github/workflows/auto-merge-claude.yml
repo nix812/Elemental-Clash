@@ -1,20 +1,26 @@
 name: Auto-merge Claude branches
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
     branches:
-      - main
+      - 'claude/**'
 
 jobs:
   auto-merge:
-    if: startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - name: Merge PR into main
-        run: gh pr merge ${{ github.event.pull_request.number }} --merge --repo ${{ github.repository }}
+      - name: Create PR and merge into main
+        run: |
+          PR_URL=$(gh pr list --repo "$REPO" --head "$BRANCH" --json url --jq '.[0].url')
+          if [ -z "$PR_URL" ]; then
+            PR_URL=$(gh pr create --repo "$REPO" --head "$BRANCH" --base main --title "Auto: $BRANCH" --body "Automated merge from Claude session.")
+          fi
+          PR_NUMBER=$(gh pr view "$PR_URL" --repo "$REPO" --json number --jq '.number')
+          gh pr merge "$PR_NUMBER" --merge --repo "$REPO"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
