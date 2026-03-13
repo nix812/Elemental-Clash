@@ -2,7 +2,6 @@
 
 This file is read automatically by Claude Code at the start of every session.
 Update it after design decisions, balance changes, or planning sessions.
-<!-- auto-merge test -->
 
 ## Session Workflow
 
