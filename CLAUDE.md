@@ -16,6 +16,22 @@ No frameworks, no build step — vanilla HTML/CSS/JS only.
 
 ---
 
+## North Star
+
+> *Easy to learn, hard to master — never punishing to casual players.*
+
+Built for the parent-gamer with 10 spare minutes. Competitive enough to scratch that itch, approachable enough to pick up cold.
+
+**Core tension:** Skill ceiling without knowledge gates.
+
+- Mastery = reading the moment and knowing your hero
+- NOT memorizing spawns, terrain, or wiki tables
+- No advantage for players who do homework — the game itself creates unpredictability
+- Characters must have real identity and skill expression
+- Every design decision should pass this filter: *does this reward execution and adaptability, or does it reward homework?*
+
+---
+
 ## Architecture
 
 - All game logic runs client-side (browser)
@@ -137,6 +153,9 @@ Scale ranges:
 
 ## Design Philosophy
 
+*All philosophy flows from the North Star above.*
+
+- Unpredictability is a feature, not a bug — it keeps every session fresh and levels the field
 - Fights should end in 5–8 seconds of committed combat
 - Every hero has a clear identity — no hero should feel like a generic alternative
 - Passives reward skilled play but don't punish casual players
@@ -192,3 +211,4 @@ Elemental-Clash/
 - Renamed to index.html for GitHub Pages
 - Added LICENSE (All Rights Reserved + CC BY 4.0 music attribution)
 - Set up GitHub Pages at https://nix812.github.io/Elemental-Clash/
+- Added North Star and Design Philosophy to CLAUDE.md
