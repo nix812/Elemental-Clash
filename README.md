@@ -7,7 +7,7 @@ A browser-based top-down hero battle game built entirely in HTML, CSS, and JavaS
 ##  How to Play
 
 1. Download or clone this repository
-2. Open `elemental-clash.html` in any modern browser
+2. Open `index.html` in any modern browser
 3. No installation, server, or dependencies required — runs entirely in the browser
 
 ---
@@ -76,7 +76,7 @@ Ten heroes, each with a unique element, combat class, 3 abilities, a special, an
 
 ```
 elemental-clash/
-├── elemental-clash.html   # Game — HTML, CSS, and JS
+├── index.html             # Game — HTML, CSS, and JS
 ├── audio/
 │   ├── bgm-battle.mp3     # In-game battle music
 │   └── bgm-menu.mp3       # Main menu music
