@@ -1,4 +1,4 @@
-# ⚡ Elemental Clash
+# Elemental Clash
 
 A browser-based top-down hero battle game built entirely in HTML, CSS, and JavaScript. Choose your elemental hero, master their abilities, and clash against bots across dynamic arenas.
 
@@ -12,7 +12,7 @@ A browser-based top-down hero battle game built entirely in HTML, CSS, and JavaS
 
 ---
 
-## 🦸 Hero Roster
+## Hero Roster
 
 Ten heroes, each with a unique element, combat class, 3 abilities, a special, and a passive:
 
