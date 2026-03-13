@@ -110,10 +110,11 @@
   #hero-select {
     background: var(--bg);
     padding: 0;
-    overflow: hidden;
-    justify-content: flex-start;
-    align-items: stretch;
-    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    flex-direction: column !important;
     gap: 0;
     box-sizing: border-box;
     width: 100%;
@@ -188,13 +189,13 @@
   .hs-body {
     display: flex;
     flex-direction: column;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 12px;
+    padding: 8px 12px 8px;
     gap: 0;
   }
 
@@ -379,20 +380,22 @@
   .hs-status-note.countdown { color: var(--accent); font-family: 'Orbitron', monospace; font-weight: 700; }
   .hs-status-note.launching { color: gold; font-family: 'Orbitron', monospace; font-weight: 900; animation: pulse 0.5s ease infinite alternate; }
 
-  /* 5. Ready section — rigid fixed-height row, direct child of #hero-select */
+  /* 5. Ready section — fixed bar at bottom, outside scroll area */
   .hs-section-ready {
-    flex-shrink: 0;
-    flex-grow: 0;
-    height: 64px;
-    box-sizing: border-box;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: var(--bg);
     padding: 8px 12px 10px;
     border-top: 1px solid var(--border);
+    box-sizing: border-box;
+    z-index: 10;
   }
   /* Full-width ready button */
   .hs-ready-full {
     width: 100%;
-    height: 100%;
+    height: clamp(36px, 5vh, 46px);
     font-size: clamp(11px, 1.4vw, 14px);
   }
 
@@ -1103,10 +1106,10 @@
   <!-- MODE SELECT -->
 
   <!-- ELEMENT SELECT (pre-game) -->
-  <div id="hero-select" class="screen">
+  <div id="hero-select" class="screen" style="flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;overflow-y:auto!important;overflow-x:hidden!important;padding:0!important;">
 
-    <!-- TOP BAR -->
-    <div class="hs-topbar">
+    <!-- ROW 1: TOP BAR -->
+    <div class="hs-topbar" style="position:sticky;top:0;z-index:5;background:var(--bg);">
       <button class="hs-back" onclick="showScreen('menu')">&#8592; BACK</button>
       <div class="hs-title">CHOOSE YOUR ELEMENT</div>
       <div class="hs-topbar-right">
@@ -1114,40 +1117,33 @@
       </div>
     </div>
 
-    <!-- SINGLE VERTICAL PANE -->
-    <div class="hs-body">
-
-      <!-- STATUS NOTE — above element grid -->
+    <!-- ROW 2: ELEMENT GRID -->
+    <div style="width:100%;box-sizing:border-box;padding:8px 12px 0;">
       <div id="lobby-status" class="lobby-status hs-status-note">Pick your element</div>
-
-      <!-- 1. ELEMENT GRID — element choice -->
-      <div class="hs-section hs-section-grid">
-        <div class="hero-grid" id="hero-grid"></div>
-      </div>
-
-      <!-- 2. ELEMENT DETAIL — tier ratings -->
-      <div class="hs-section hs-section-detail">
-        <div class="hero-detail-compact" id="hero-detail"></div>
-      </div>
-
-      <!-- 3. PLAYER COUNT -->
-      <div class="hs-section hs-section-mode" id="hs-mode-section">
-        <div class="hs-mode-bar">
-          <button class="pc-btn" onclick="if(lobbySlots.length>2){lobbySlots.pop();if(activeSlotIdx>=lobbySlots.length)activeSlotIdx=0;buildLobby();}">−</button>
-          <div id="match-label" class="match-label-display"></div>
-          <button class="pc-btn" onclick="if(lobbySlots.length<6){const t=[...new Set(lobbySlots.map(s=>s.teamId))];const n=t.length<6?t.length:t[t.length-1];lobbySlots.push({type:'cpu',hero:null,locked:false,teamId:n});buildLobby();}">+</button>
-        </div>
-      </div>
-
-      <!-- 4. LOBBY SLOTS — player frames -->
-      <div class="hs-section hs-section-slots">
-        <div id="lobby-slots" class="hs-slots"></div>
-      </div>
-
+      <div class="hero-grid" id="hero-grid"></div>
     </div>
 
-    <!-- 5. READY — outside scroll area, always visible at bottom -->
-    <div class="hs-section hs-section-ready">
+    <!-- ROW 3: ELEMENT STATS -->
+    <div style="width:100%;box-sizing:border-box;padding:8px 12px;border-top:1px solid var(--border);">
+      <div class="hero-detail-compact" id="hero-detail"></div>
+    </div>
+
+    <!-- ROW 4: PLAYER COUNT -->
+    <div style="width:100%;box-sizing:border-box;padding:6px 12px;border-top:1px solid var(--border);" id="hs-mode-section">
+      <div class="hs-mode-bar">
+        <button class="pc-btn" onclick="if(lobbySlots.length>2){lobbySlots.pop();if(activeSlotIdx>=lobbySlots.length)activeSlotIdx=0;buildLobby();}">−</button>
+        <div id="match-label" class="match-label-display"></div>
+        <button class="pc-btn" onclick="if(lobbySlots.length<6){const t=[...new Set(lobbySlots.map(s=>s.teamId))];const n=t.length<6?t.length:t[t.length-1];lobbySlots.push({type:'cpu',hero:null,locked:false,teamId:n});buildLobby();}">+</button>
+      </div>
+    </div>
+
+    <!-- ROW 5: TEAM SLOTS -->
+    <div style="width:100%;box-sizing:border-box;padding:8px 12px;border-top:1px solid var(--border);">
+      <div id="lobby-slots" class="hs-slots"></div>
+    </div>
+
+    <!-- ROW 6: READY BUTTON -->
+    <div style="width:100%;box-sizing:border-box;padding:8px 12px 16px;border-top:1px solid var(--border);">
       <button class="diff-ready hs-ready-full" id="ready-btn" onclick="lobbyReady()">READY</button>
     </div>
 
